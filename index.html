@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ResPOND BLE Visualization</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000000;
+      font-family: "Calibri";
+      color: #ffffff;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    #container {
+      display: flex;
+      flex-direction: row;
+      width: 100%;
+      height: 100%;
+    }
+
+    #sidebar {
+      flex: 0 0 30%;
+      background: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-right: 3px solid #369e8e;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    #sidebar h1 {
+      font-size: 36px;
+      font-weight: bold;
+      color: #ffffff;
+      text-align: center;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+
+    .authorName {
+      font-size: 16px;
+      color: #ffffff;
+      margin-bottom: 20px;
+      text-align: center;
+      width: 100%;
+    }
+
+    .buttonBar {
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 80%;
+    }
+
+    button {
+      padding: 8px 14px;
+      font-size: 12px;
+      background: #1976d2;
+      color: #ffffff;
+      border: none;
+      border-radius: 15px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    button:hover {
+      background: #1565c0;
+    }
+
+    .infoText {
+      font-size: 16px;
+      margin-bottom: 2px;
+      line-height: 1.2;
+      color: gray;
+      text-align: center;
+      width: 100%;
+    }
+
+    #main {
+      flex: 0 0 70%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    .canvasWrapper {
+      width: 95%;
+      padding-right: 20px;
+      box-sizing: border-box;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #000000;
+      border: 3px solid #369e8e;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="sidebar">
+      <h1>ResPOND</h1>
+      <p class="authorName">Yuyao Lin</p>
+      <div class="buttonBar">
+        <button id="bleButton">Connect Device</button>
+        <button id="fullscreenButton">Fullscreen</button>
+      </div>
+      <p class="infoText">Connected points: <span id="pointsCount">0</span></p>
+      <p class="infoText">Motor Trigger Count: <span id="motorCount">0</span></p>
+    </div>
+
+    <div id="main">
+      <div class="canvasWrapper">
+        <canvas id="resCanvas" width="3000" height="2000"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('resCanvas');
+    const ctx = canvas.getContext('2d');
+    const bleButton = document.getElementById('bleButton');
+    const fullscreenButton = document.getElementById('fullscreenButton');
+    const pointsCountSpan = document.getElementById('pointsCount');
+    const motorCountSpan = document.getElementById('motorCount');
+    const container = document.getElementById('container');
+
+    const fish1XY = [], fish2XY = [], fish3XY = [], waveXY = [], vibration = [];
+    const maxLen = canvas.width;
+    let bleDevice = null;
+    let bleCharacteristic = null;
+    let isFullscreen = false;
+    let motorTriggerCount = 0;
+
+    let jumpingFish = []; // ⭐️ Fish jump array
+
+    const yMax = [20, 20, 20, 20, 800];
+
+    function pushData(arr, val) {
+      arr.push(val);
+      if (arr.length > maxLen) arr.shift();
+    }
+
+    function normalize(val, max, h) {
+      return h / 2 - (val / max) * h;
+    }
+
+    function drawLine(data, color, xOffset, yOffset, maxVal, h, label) {
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.moveTo(xOffset, yOffset + h / 2);
+
+      for (let i = 0; i < data.length; i++) {
+        const val = normalize(data[i], maxVal, h);
+        ctx.lineTo(i + xOffset, yOffset + h / 2 + val);
+      }
+
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.font = "bold 50px Calibri";
+      ctx.fillText(label + " (max: " + maxVal + ")", 10, yOffset + 18);
+    }
+
+    function drawLineVibration(data, color, xOffset, yOffset, maxVal, h, label) {
+      const baseY = yOffset + h * 0.65;
+      const scaleHeight = h * 0.3;
+
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.moveTo(xOffset, baseY);
+
+      for (let i = 0; i < data.length; i++) {
+        const val = baseY - (data[i] / maxVal) * scaleHeight;
+        ctx.lineTo(i + xOffset, val);
+      }
+
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.font = "bold 50px Calibri";
+      ctx.fillText(label + " (max: " + maxVal + ")", 10, yOffset + 18);
+    }
+
+    // ⭐️ Draw simple fish
+    function drawSimpleFish(x, y, size) {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x + size/2, y - size/2, x + size, y);
+      ctx.quadraticCurveTo(x + size/2, y + size/2, x, y);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const topMargin = 60;
+      const h = (canvas.height - topMargin) / 5;
+
+      drawLine(fish1XY, '#e4b580', 0, 0 * h + topMargin, yMax[0], h, "fish1XY");
+      drawLine(fish2XY, '#a1daa8', 0, 1 * h + topMargin, yMax[1], h, "fish2XY");
+      drawLine(fish3XY, '#84bced', 0, 2 * h + topMargin, yMax[2], h, "fish3XY");
+      drawLine(waveXY,  '#c36363', 0, 3 * h + topMargin, yMax[3], h, "waveXY");
+      drawLineVibration(vibration, '#aaaaaa', 0, 4 * h + topMargin, yMax[4], h, "vibration");
+
+      // ⭐️ Draw jumping fish
+      const now = performance.now();
+      jumpingFish = jumpingFish.filter(fish => now - fish.startTime < fish.duration);
+
+      jumpingFish.forEach(fish => {
+        const t = (now - fish.startTime) / fish.duration;
+        const progress = Math.sin(t * Math.PI);
+        const y = canvas.height - 100 - fish.jumpHeight * progress;
+        drawSimpleFish(fish.x, y, 80);
+      });
+
+      pointsCountSpan.textContent = fish1XY.length;
+      motorCountSpan.textContent = motorTriggerCount;
+
+      requestAnimationFrame(draw);
+    }
+
+    bleButton.addEventListener('click', async () => {
+      if (!bleDevice) {
+        try {
+          const device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: ['0000ffe0-0000-1000-8000-00805f9b34fb'] }]
+          });
+          bleDevice = device;
+          const server = await device.gatt.connect();
+          const service = await server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
+          bleCharacteristic = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
+          await bleCharacteristic.startNotifications();
+          bleCharacteristic.addEventListener('characteristicvaluechanged', handleData);
+
+          bleButton.textContent = 'Disconnect Device';
+        } catch (e) {
+          alert("BLE 连接失败：" + e);
+        }
+      } else {
+        if (bleDevice.gatt.connected) {
+          bleDevice.gatt.disconnect();
+        }
+        bleDevice = null;
+        bleCharacteristic = null;
+        bleButton.textContent = 'Connect BLE Device';
+      }
+    });
+
+    fullscreenButton.addEventListener('click', () => {
+      if (!isFullscreen) {
+        if (container.requestFullscreen) {
+          container.requestFullscreen();
+        } else if (container.webkitRequestFullscreen) {
+          container.webkitRequestFullscreen();
+        } else if (container.msRequestFullscreen) {
+          container.msRequestFullscreen();
+        }
+        fullscreenButton.textContent = 'Exit Fullscreen';
+        isFullscreen = true;
+      } else {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else if (document.webkitFullscreenElement) {
+          document.webkitExitFullscreen();
+        } else if (document.msFullscreenElement) {
+          document.msExitFullscreen();
+        }
+        fullscreenButton.textContent = 'Fullscreen';
+        isFullscreen = false;
+      }
+    });
+
+    function handleData(event) {
+      const value = new TextDecoder().decode(event.target.value).trim();
+      const parts = value.split(',');
+      if (parts.length === 5) {
+        try {
+          const wave = parseFloat(parts[0]);
+          const f1 = parseFloat(parts[1]);
+          const f2 = parseFloat(parts[2]);
+          const f3 = parseFloat(parts[3]);
+          const vib = parseFloat(parts[4]);
+
+          pushData(fish1XY, f1);
+          pushData(fish2XY, f2);
+          pushData(fish3XY, f3);
+          pushData(waveXY, wave);
+          pushData(vibration, vib);
+
+          let mismatchCount = 0;
+          const diffThreshold = 4.0;
+          const requiredFishTriggers = 2;
+          const vibrationThreshold = 20;
+
+          if (Math.abs(f1 - wave) > diffThreshold) mismatchCount++;
+          if (Math.abs(f2 - wave) > diffThreshold) mismatchCount++;
+          if (Math.abs(f3 - wave) > diffThreshold) mismatchCount++;
+
+          if (mismatchCount >= requiredFishTriggers && vib > vibrationThreshold) {
+            motorTriggerCount++;
+            console.log("⚠️ Motor Triggered! Count: " + motorTriggerCount);
+
+            // ⭐️ Add jumping fish
+            jumpingFish.push({
+              x: Math.random() * canvas.width * 0.9 + 50,
+              startTime: performance.now(),
+              duration: 1000,
+              jumpHeight: 300 + Math.random() * 200
+            });
+          }
+
+        } catch (e) {
+          console.log("解析错误", e);
+        }
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'p' || e.key === 'P') {
+        const link = document.createElement('a');
+        link.download = 'ResPOND_snapshot.png';
+        link.href = canvas.toDataURL();
+        link.click();
+      }
+    });
+
+    draw();
+  </script>
+</body>
+</html>
