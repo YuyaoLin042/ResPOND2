@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ResPOND BLE</title>
+  <title>ResPOND BLE (Optimized)</title>
   <style>
     html, body {
       margin: 0;
@@ -55,7 +55,7 @@
 <body>
   <div id="ui">
     <h1>ResPOND</h1>
-    <p>Points Count: <span id="pointsCount">0</span></p>
+    <p>Shaken Count: <span id="pointsCount">0</span></p>
     <p>Motor Triggers: <span id="motorCount">0</span></p>
   </div>
   <div id="buttons">
@@ -66,16 +66,19 @@
   <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
   <script>
     let fishList = [], ripples = [], pellets = [], bubbles = [];
-    let waveValue = 0, fishValues = [0, 0, 0], lastFishValues = [0, 0, 0], vibration = 0;
-    let motorTriggerCount = 0, lastTrigger = false;
+    let fishValues = [0, 0, 0], lastFishValues = [0, 0, 0];
+    let motorTriggerCount = 0;
     let wavePhase = 0;
     let bleDevice = null, bleCharacteristic = null;
     let clearTimer = null;
 
-    const diffThreshold = 3.0;
+    // --- 逻辑简化 ---
+    let lastTrigger = false; // 恢复使用 lastTrigger 标志
+    const diffThreshold = 3.0; 
     const requiredFishTriggers = 2;
-    const waterSurfaceY = 0.6;      // 水面高度
-    const bubbleTriggerY = 0.65;    // 药片触发泡泡的高度
+
+    const waterSurfaceY = 0.6;
+    const bubbleTriggerY = 0.65;
 
     function setup() {
       createCanvas(windowWidth, windowHeight);
@@ -132,16 +135,10 @@
     }
 
     class Fish {
-      constructor(x, y) {
-        this.x = x;
-        this.baseY = y;
-        this.offset = random(1000);
-      }
+      constructor(x, y) { this.x = x; this.baseY = y; this.offset = random(1000); }
       display() {
         let y = this.baseY + sin(frameCount * 0.05 + this.offset) * 3;
-        stroke(200, 255, 230);
-        strokeWeight(1);
-        noFill();
+        stroke(200, 255, 230); strokeWeight(1); noFill();
         beginShape();
         vertex(this.x - 12, y);
         quadraticVertex(this.x, y - 6, this.x + 12, y);
@@ -153,65 +150,27 @@
     }
 
     class Ripple {
-      constructor(x, y) {
-        this.x = x; this.y = y;
-        this.radius = 5; this.alpha = 1.0;
-      }
-      update() {
-        this.radius += 0.8;
-        this.alpha -= 0.01;
-      }
-      display() {
-        stroke(255, this.alpha * 255);
-        noFill();
-        ellipse(this.x, this.y, this.radius * 2);
-      }
+      constructor(x, y) { this.x = x; this.y = y; this.radius = 5; this.alpha = 1.0; }
+      update() { this.radius += 0.8; this.alpha -= 0.01; }
+      display() { stroke(255, this.alpha * 255); noFill(); ellipse(this.x, this.y, this.radius * 2); }
       isDone() { return this.alpha <= 0; }
     }
 
     class Pellet {
-      constructor(x) {
-        this.pos = createVector(x, -10);
-        this.alpha = 255;
-        this.hitWater = false;
-      }
+      constructor(x) { this.pos = createVector(x, -10); this.alpha = 255; this.hitWater = false; }
       update() {
-        if (!this.hitWater) this.pos.y += 5;
-        else this.alpha -= 3;
-
-        if (!this.hitWater && this.pos.y > height * bubbleTriggerY) {
-          this.hitWater = true;
-        }
+        if (!this.hitWater) this.pos.y += 5; else this.alpha -= 3;
+        if (!this.hitWater && this.pos.y > height * bubbleTriggerY) { this.hitWater = true; }
       }
-      display() {
-        fill(255, this.alpha);
-        noStroke();
-        ellipse(this.pos.x, this.pos.y, 6, 6);
-      }
-      isDone() {
-        return this.alpha <= 0;
-      }
+      display() { fill(255, this.alpha); noStroke(); ellipse(this.pos.x, this.pos.y, 6, 6); }
+      isDone() { return this.alpha <= 0; }
     }
 
     class Bubble {
-      constructor(x, y) {
-        this.pos = createVector(x, y);
-        this.radius = random(3, 12);
-        this.alpha = 120;
-        this.speed = random(0.3, 1.5);
-      }
-      update() {
-        this.pos.y -= this.speed;
-        this.alpha -= 1;
-      }
-      display() {
-        fill(255, this.alpha);
-        noStroke();
-        ellipse(this.pos.x, this.pos.y, this.radius);
-      }
-      isDone() {
-        return this.alpha <= 0;
-      }
+      constructor(x, y) { this.pos = createVector(x, y); this.radius = random(3, 12); this.alpha = 120; this.speed = random(0.3, 1.5); }
+      update() { this.pos.y -= this.speed; this.alpha -= 1; }
+      display() { fill(255, this.alpha); noStroke(); ellipse(this.pos.x, this.pos.y, this.radius); }
+      isDone() { return this.alpha <= 0; }
     }
 
     document.getElementById("bleButton").onclick = async () => {
@@ -252,22 +211,23 @@
       const parts = str.split(',');
       if (parts.length !== 5) return;
       
-      waveValue = parseFloat(parts[0]);
+      let shakenCount = 0;
 
       for (let i = 0; i < 3; i++) {
         fishValues[i] = parseFloat(parts[i + 1]);
-        if (Math.abs(fishValues[i] - lastFishValues[i]) > 0.5) {
+        
+        if (Math.abs(fishValues[i] - lastFishValues[i]) > diffThreshold) {
+          shakenCount++;
           ripples.push(new Ripple(fishList[i].x, fishList[i].baseY));
         }
+        
         lastFishValues[i] = fishValues[i];
       }
-
-      vibration = parseInt(parts[4]);
-      let mismatch = fishValues.filter(v => Math.abs(v - waveValue) > diffThreshold).length;
       
-      // !!! 修改点：移除了 && vibration > vibrationThreshold 的条件 !!!
-      let trigger = mismatch >= requiredFishTriggers;
+      let trigger = shakenCount >= requiredFishTriggers;
 
+      // --- 核心逻辑修改 ---
+      // 使用 lastTrigger 标志来确保只在状态变化的瞬间触发一次
       if (trigger && !lastTrigger) {
         for (let i = 0; i < 20; i++) {
           pellets.push(new Pellet(random(width)));
@@ -281,9 +241,10 @@
         }, 5000);
       }
 
+      // 在函数末尾更新 lastTrigger 的状态，为下一次循环做准备
       lastTrigger = trigger;
-      // 更新 Points Count 为不匹配的传感器数量，更直观
-      document.getElementById("pointsCount").textContent = mismatch;
+      
+      document.getElementById("pointsCount").textContent = shakenCount;
     }
   </script>
 </body>
