@@ -36,19 +36,19 @@ The following images show the ResPOND concept, night-time testing, and physical 
 
 ### Scenario Render
 
-<img src="media/respond_scenario_render.gif" width="700">
+<img src="media/RespondScenarioRender.gif" width="700">
 
 A visual scenario showing ResPOND deployed in a pond environment, surrounded by floating sensing units and fish activity.
 
 ### Night-Time Testing
 
-<img src="media/respond_night_testing.jpg" width="700">
+<img src="media/RespondNightTesting.jpg" width="700">
 
 A night-time testing scene showing the ResPOND prototype being placed in a pond-like environment and illuminated during low-light conditions.
 
 ### Prototype Close-up
 
-<img src="media/respond_prototype_closeup.jpg" width="700">
+<img src="media/RespondPrototypeCloseup.jpg" width="700">
 
 A close-up view of the ResPOND prototype, showing the floating structure, lighting, and surrounding pond-care scenario.
 
@@ -67,9 +67,9 @@ ResPOND2/
     ResPOND_Project_Deck.pdf
 
   media/
-    respond_scenario_render.gif
-    respond_night_testing.jpg
-    respond_prototype_closeup.jpg
+    RespondScenarioRender.gif
+    RespondNightTesting.jpg
+    RespondPrototypeCloseup.jpg
 ```
 
 ## Hardware
