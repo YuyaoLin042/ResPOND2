@@ -1,32 +1,84 @@
-# Supplementary Materials – Submission ID 8133
+# ResPOND
 
-This archive contains the supplementary materials accompanying the paper submission.  
-All contents have been anonymized in accordance with the CHI submission policy.
+**ResPOND** is a research prototype exploring night-time pond-care through low-cost sensing, Bluetooth-based data transmission, and web-based visualization. It was developed as part of a design research project on rural fish pond hypoxia, small-scale aquaculture, and more-than-human pond-care relations.
 
-## File Overview
+This repository contains the Arduino code, web interface, 3D printing model files, and supporting design documentation for the ResPOND prototype.
 
-### 1. `Processing_GCode_SignalVisualize/`
-Processing sketch that visualizes the fluctuation signals collected by the device.  
-Used to generate real-time graphical representations of surface movement, subsurface vibration, and other sensor data.
+## Live Web Demo
 
-### 2. `ResPOND_Arduino/`
-Main Arduino code for operating the prototype device.  
-Implements sensor initialization, threshold-based signal comparison, and actuation control (tablet dispenser, motors, and LED indicators).
+The web-based Bluetooth visualization can be accessed here:
 
-### 3. `3DModels.3mf`
-3D printing slice files of the prototype.  
-Contains the structural parts required for fabricating and assembling the device housing and dispensing mechanism.
+https://yuyaolin042.github.io/ResPOND2/
 
-### 4. `index.html`
-Interactive visualization mock-up created to support explanation of the project concept.  
-Provides an illustrative interface, not part of the deployed hardware prototype.
+The interface receives sensor data from the prototype and visualizes fish movement / vibration-related signals, shaken counts, and motor trigger events.
 
-### 5. `Survey_ResPOND.pdf`
-Questionnaire and results from a post-prototype survey with 60 fish farmers.  
-Includes multiple-choice responses regarding usability, perceived usefulness, and potential adoption of the device.  
-All data are aggregated and anonymized.
+## Videos
+
+### Demo Video
+
+A short demo showing the ResPOND prototype and web-based Bluetooth visualization in use.
+[Watch the demo video](https://youtu.be/-sM7XNfoZp4?si=Gn7xAY6S40rEIeUO)
+
+### Full Project Video
+
+A full video introducing the design context, prototype concept, sensing logic, and night-time pond-care scenario.
+[Watch the full project video](https://youtu.be/VWaMvkhdfQA?si=AberRkaxo1d45DwR)
+
+## Project Deck
+
+The project presentation deck provides a broader overview of the design context, pond hypoxia problem, prototype workflow, sensing logic, structure, field validation, and farmer feedback.
+
+[View the ResPOND project deck](docs/ResPOND_Project_Deck.pdf)
+
+## Visual Overview
+
+The following images show the ResPOND concept, night-time testing, and physical prototype.
+
+### Scenario Render
+
+<img src="media/respond_scenario_render.gif" width="700">
+
+A visual scenario showing ResPOND deployed in a pond environment, surrounded by floating sensing units and fish activity.
+
+### Night-Time Testing
+
+<img src="media/respond_night_testing.jpg" width="700">
+
+A night-time testing scene showing the ResPOND prototype being placed in a pond-like environment and illuminated during low-light conditions.
+
+### Prototype Close-up
+
+<img src="media/respond_prototype_closeup.jpg" width="700">
+
+A close-up view of the ResPOND prototype, showing the floating structure, lighting, and surrounding pond-care scenario.
+
+## Repository Contents
+
+```text
+ResPOND2/
+  README.md
+  index.html
+  ResPOND_Arduino.ino
+
+  hardware/
+    3D_printing_models/
+
+  docs/
+    ResPOND_Project_Deck.pdf
+
+  media/
+    respond_scenario_render.gif
+    respond_night_testing.jpg
+    respond_prototype_closeup.jpg
+```
+
+## Hardware
+
+The `hardware/` folder includes the 3D printing model files for the ResPOND prototype structure.
+
+The current prototype uses multiple motion / vibration sensing inputs to detect possible abnormal fish activity and transmits the data to the web interface via Bluetooth. The Arduino code controls sensing input, signal interpretation, and motor-triggered response logic.
 
 ## Notes
-- These supplementary materials are provided to complement the description of the prototype and evaluation in the main paper.  
-- The main submission contains all essential information; these files serve only as additional reference.  
-- All files are anonymized and contain no identifying metadata.
+
+ResPOND is a design research prototype rather than a commercial aquaculture product. This repository is intended to document the technical prototype, web-based visualization, 3D printing files, and supporting design materials for research and demonstration purposes.
+
